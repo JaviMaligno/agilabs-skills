@@ -32,6 +32,8 @@ PAD_AFTER = 1.0
 PROJ = subprocess.run(["gcloud", "config", "get-value", "project"], capture_output=True, text=True).stdout.strip()
 TOKEN = subprocess.run(["gcloud", "auth", "print-access-token"], capture_output=True, text=True).stdout.strip()
 
+# No `gcloud auth`? Swap this for the edge-tts fallback (free, no auth) — see
+# SKILL.md "TTS without gcloud" for the drop-in subprocess-based replacement.
 def tts(text, path):
     body = json.dumps({"input": {"text": text}, "voice": {"languageCode": "en-GB", "name": VOICE},
                        "audioConfig": {"audioEncoding": "MP3", "speakingRate": 1.0}}).encode()
@@ -88,6 +90,18 @@ for beat in BEATS:
     segv = os.path.join(WORK, label + "_v.mp4")
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", bl,
         "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2", "-pix_fmt", "yuv420p", "-r", "30", "-c:v", "libx264", "-crf", "23", segv], check=True)
+    # Sync note: `durs[-1] += (target - vis)` above already stretched the video's
+    # frame-hold list so its duration is >= adur + PAD_AFTER, i.e. the video is
+    # never shorter than the narration. That's what makes `-shortest` safe here —
+    # it's a belt-and-braces trim on an already-reconciled pair, not the sync
+    # mechanism itself. `apad` here is a bare/unbounded pad (no `whole_dur`); it
+    # only "works" because the following `-shortest` cuts it back to match video.
+    # Don't copy this `apad` + `-shortest` combo into a fresh merge step where
+    # durations haven't already been reconciled — there, use the explicit
+    # `adelay=<ms>|<ms>,apad=whole_dur=<video_seconds>` pattern (delay the voice
+    # in, pad silence out to the exact video length) and `tpad=stop_mode=clone`
+    # to extend the video if narration would run long. See SKILL.md "FFmpeg sync
+    # rules" for the full explanation.
     seg = os.path.join(WORK, label + ".mp4")
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", segv, "-i", aud,
         "-filter_complex", "[1:a]apad[a]", "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-shortest", seg], check=True)

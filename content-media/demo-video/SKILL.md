@@ -21,6 +21,10 @@ gcloud auth print-access-token >/dev/null && echo TTS-auth OK   # Google Cloud T
 python3 -c "import websockets" || pip install websockets
 ```
 
+No `gcloud auth` on this machine/account? Skip straight to
+[TTS without gcloud](#tts-without-gcloud-edge-tts-fallback) below — `edge-tts` needs
+no credentials at all.
+
 ## 1. Launch Chrome with CDP (SSO once, profile persists)
 
 ```bash
@@ -108,6 +112,92 @@ when pixels change, so cost scales with motion, not duration.
 python3 scripts/build_video.py /tmp/rec/<video> beats.json out.mp4      # per-beat TTS + ffmpeg
 python3 scripts/assemble_full.py final.mp4 clip1.mp4 clip2.mp4 ...      # concat (re-encodes uniformly)
 ```
+
+### TTS without gcloud (edge-tts fallback)
+
+Google Cloud TTS (Chirp3-HD) is the recommended default — most natural voice, and
+`build_video.py` is wired for it. If `gcloud auth` isn't available (no GCP project,
+no billing, working from an account without access), use **`edge-tts`** instead: a
+free, no-auth CLI that calls Microsoft Edge's neural voices.
+
+```bash
+uv tool install edge-tts   # or: pip install edge-tts
+edge-tts --list-voices | grep en-GB          # pick a voice, e.g. en-GB-SoniaNeural
+edge-tts --voice en-GB-SoniaNeural --text "Narration text" --write-media out.mp3
+```
+
+To use it in `build_video.py`, swap the `tts()` function's body for a subprocess
+call instead of the Google REST request:
+
+```python
+def tts(text, path):
+    subprocess.run(["edge-tts", "--voice", "en-GB-SoniaNeural", "--text", text,
+                     "--write-media", path], check=True)
+```
+
+Notes: `edge-tts` needs internet access (it's calling Microsoft's service, just
+without an API key/auth flow) and use `--write-media` for the output flag (not
+`-f`). Voice durations vary slightly run-to-run even for identical text — harmless
+for a one-off build, but if you regenerate narration for a beat you've already
+timed against, expect the sync math in `build_video.py` to re-derive slightly
+different padding.
+
+## FFmpeg sync rules (audio vs video length)
+
+These hold regardless of which script is doing the muxing:
+
+- **Never use `-shortest`** when merging a narration track onto a video clip as
+  your *primary* sync mechanism — it silently truncates whichever stream is
+  longer, cutting narration mid-sentence or dropping trailing video.
+- **Pad audio to the exact video length** with `adelay` (silence before narration
+  starts) + `apad=whole_dur=<video_seconds>` (silence out to the exact video
+  duration) — not a bare `apad`, which pads by an unbounded amount and only
+  "works" if you then rely on `-shortest` to cut it back down:
+  ```bash
+  ffmpeg -y -i video.mp4 -i narration.mp3 \
+    -filter_complex "[1:a]adelay=DELAY_MS|DELAY_MS,apad=whole_dur=VIDEO_DURATION[a]" \
+    -map 0:v -map "[a]" -c:v copy -c:a aac out.mp4
+  ```
+- **If narration is longer than the clip**, extend the clip instead of truncating
+  the voice: `tpad=stop_mode=clone:stop_duration=<seconds>` freezes the last frame
+  to fill the gap, then apply the `adelay`+`apad` merge above.
+- Symptom of getting this wrong across a multi-clip concat: progressive audio
+  drift, where each subsequent clip's narration starts earlier/later than it
+  should — ffmpeg's concat demuxer picks up a clip's audio where the *previous
+  clip's audio track* ended, not where its video ended, so any short audio track
+  compounds the drift on every clip after it.
+
+`build_video.py` in this skill sidesteps the truncation risk a different way: it
+extends the frame-hold list itself (see the `durs[-1] += ...` line) so the video
+segment is already ≈ narration length *before* muxing, then uses `apad` + a final
+`-shortest` only as a belt-and-braces trim once durations are already reconciled.
+If you're wiring up a merge step from scratch (a single ad-hoc beat, or a
+different pipeline), prefer the explicit `adelay`+`apad=whole_dur`+`tpad` pattern
+above — it doesn't depend on pre-computing frame durations to stay safe.
+
+## Iterating cheaply on one beat
+
+Re-rendering the whole video for a one-line narration tweak is slow and re-encodes
+footage that didn't change. Three options, cheapest first:
+
+1. **Splice** — rebuild only the target beat's clip, then cut it into the already
+   assembled output: extract the segment *before* the beat and the segment *after*
+   it from the existing final MP4 with `-ss`/`-to` + stream copy (`-c copy`, no
+   re-encode), then concat `before + new-beat + after`. Requires knowing each
+   beat's offset in the final file — keep a small sidecar (e.g. cumulative beat
+   durations) alongside the output so you don't have to re-derive it.
+2. **Recompute + re-concat** — `build_video.py` already writes one `<label>.mp4`
+   per beat into `<REC>/build/` before concatenating them. If those cached clips
+   are still around, rebuild just the changed beat's clip and re-run the final
+   concat over the full set. Cheaper than a full rebuild because only one beat
+   re-runs TTS + frame assembly; the concat itself is a stream copy.
+3. **Full rebuild** — reprocess every beat from scratch. Reserve this for the
+   initial assembly, or when the recording/timeline itself changed (re-recorded
+   steps, new frames) — in that case the cached per-beat clips are stale anyway
+   and splicing/recompute would just propagate the staleness.
+
+Prefer 1 or 2 whenever only narration text or a single beat's timing changed;
+only fall back to 3 for structural changes to the recording.
 
 ## 6. Verify before delivering
 

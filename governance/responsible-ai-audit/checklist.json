@@ -1,0 +1,267 @@
+{
+  "$schema_note": "Each item: id, title, owner_class, code_actionable, detector (with signals[]), prompt. Detectors are stack-agnostic: each item lists multiple signal queries; the detector hits if ANY signal returns a non-empty result, unless `require: \"all\"` is set. Signal kinds: grep (patterns + paths), file_exists (paths), manual. `policy_source` below is a placeholder — the skill substitutes it from the operator's profile file (see SKILL.md Phase -1) at runtime.",
+  "policy_source": {
+    "name": "{{POLICY_NAME}}",
+    "url": "{{POLICY_URL}}"
+  },
+  "items": [
+    {
+      "id": "1",
+      "title": "Create and maintain an AI register for approved and proposed AI use cases",
+      "owner_class": "org",
+      "code_actionable": false,
+      "detector": { "kind": "manual" },
+      "prompt": null
+    },
+    {
+      "id": "2",
+      "title": "Define AI risk assessment and approval workflow for low, medium and high-risk use cases",
+      "owner_class": "org",
+      "code_actionable": false,
+      "detector": { "kind": "manual" },
+      "prompt": null
+    },
+    {
+      "id": "3",
+      "title": "Confirm approved AI tools and communicate prohibited use rules to staff",
+      "owner_class": "service",
+      "code_actionable": false,
+      "detector": {
+        "signals": [
+          { "kind": "grep", "patterns": ["Approved Applications", "Usage Restrictions", "approved models", "prohibited use"], "paths": ["docs/", "README.md", "doc/"] }
+        ],
+        "require": "any"
+      },
+      "prompt": null
+    },
+    {
+      "id": "4",
+      "title": "Develop role-based responsible AI training and awareness material",
+      "owner_class": "org",
+      "code_actionable": false,
+      "detector": { "kind": "manual" },
+      "prompt": null
+    },
+    {
+      "id": "5",
+      "title": "Add AI monitoring, audit logging, rollback and incident response requirements to operational procedures",
+      "owner_class": "service",
+      "code_actionable": true,
+      "detector": {
+        "signals": [
+          { "kind": "grep", "patterns": ["storeMetadata", "audit_log", "AuditLogger", "decision_record", "AuditRecord", "audit_record", "ai_audit", "AiAudit", "AssistantAudit"], "paths": ["app/", "src/", "internal/", "pkg/", "lib/"] },
+          { "kind": "grep", "patterns": ["model_id.*prompt_version", "prompt_version.*model_id", "prompt_hash", "model.{0,30}version"], "paths": ["app/", "src/"] },
+          { "kind": "grep", "patterns": ["audit logging", "Audit Logging Specification", "incident response runbook"], "paths": ["docs/", "doc/"] },
+          { "kind": "file_exists", "paths": ["app/Services/common/AiAssistant/Audit/", "app/Services/Ai/Audit/", "app/Models/AiAudit.php", "src/services/AuditLogger.ts"] }
+        ],
+        "require": "any",
+        "deep_inspect_when_hit": true,
+        "verdict_criteria": {
+          "done_requires": [
+            "An audit logger / module exists AND is actually invoked from the AI orchestrator (not just defined)",
+            "Each audit record literally carries `model_id` (or equivalent), `prompt_version`, and `prompt_hash` (or sha256-of-prompt). The presence of `model` / `tokens` / `latency` alone is NOT sufficient.",
+            "An IR runbook + rollback procedure are documented (controls doc §5.3 / §5.4 or equivalents)"
+          ],
+          "partial_when": "Audit module exists and is wired, BUT one or more of `model_id`/`prompt_version`/`prompt_hash` is absent from the per-event payload, OR the IR/rollback runbooks are missing.",
+          "gap_when": "No audit emitter wired into the AI orchestrator, OR the emitter only logs operational metrics (tokens/duration) with no per-event identity (no `model_id`/`prompt_version`).",
+          "critical_check": "Before declaring Done, grep the audit-emitter file(s) for the literal strings `prompt_version`, `prompt_hash`, and a model-id field. If any of the three is absent → verdict is at most Partial."
+        }
+      },
+      "prompt": "gap-5-audit-logging.md"
+    },
+    {
+      "id": "6",
+      "title": "Review alignment with privacy, access management, cloud security, backup, open source and human rights controls",
+      "owner_class": "service",
+      "code_actionable": true,
+      "sub_items": [
+        {
+          "id": "6a",
+          "title": "SBOM + licence allowlist",
+          "detector": {
+            "signals": [
+              { "kind": "file_exists", "paths": ["licenses-allowlist.json", ".licenses-allowlist.json", "scripts/check-licenses.js", "scripts/check_licenses.py", "scripts/check_licenses.sh", "scripts/check-licenses.php"] },
+              { "kind": "grep", "patterns": ["check-licenses", "check_licenses", "license-checker", "cyclonedx", "sbom"], "paths": ["package.json", "composer.json", "pyproject.toml", "Makefile", "scripts/"] }
+            ],
+            "require": "any"
+          },
+          "prompt": "gap-6-sbom.md"
+        },
+        {
+          "id": "6b",
+          "title": "Backup runbook",
+          "detector": {
+            "signals": [
+              { "kind": "file_exists", "paths": ["docs/BACKUP_PROCEDURE.md", "docs/backup.md", "doc/BACKUP.md", "docs/runbooks/backup.md"] },
+              { "kind": "grep", "patterns": ["Recovery Point Objective", "RPO", "RTO", "restore procedure", "point-in-time restore"], "paths": ["docs/", "doc/"] }
+            ],
+            "require": "any"
+          },
+          "prompt": "gap-6-backup.md"
+        }
+      ]
+    },
+    {
+      "id": "7",
+      "title": "Establish agent identity and cryptographic verification standards for external-facing AI agents",
+      "owner_class": "parked",
+      "code_actionable": false,
+      "detector": { "kind": "manual" },
+      "prompt": null,
+      "trigger_condition": "any cross-boundary write or autonomous action"
+    },
+    {
+      "id": "8",
+      "title": "Define and document cross-boundary AI agent contracts, SLAs and commercial terms with partners",
+      "owner_class": "org",
+      "code_actionable": false,
+      "detector": { "kind": "manual" },
+      "prompt": null
+    },
+    {
+      "id": "9",
+      "title": "Create and maintain a canonical data dictionary for cross-boundary AI data exchanges",
+      "owner_class": "service",
+      "code_actionable": true,
+      "detector": {
+        "signals": [
+          { "kind": "grep", "patterns": ["Canonical Data Dictionary", "canonical contract", "canonical artifact", "data dictionary"], "paths": ["docs/", "doc/", "README.md"] }
+        ],
+        "require": "any"
+      },
+      "prompt": "gap-9-data-dictionary.md"
+    },
+    {
+      "id": "10",
+      "title": "Implement data lineage tracking for derived and transformed data across partner networks",
+      "owner_class": "service",
+      "code_actionable": true,
+      "detector": {
+        "signals": [
+          { "kind": "grep", "patterns": ["model_id", "modelId", "prompt_version", "promptVersion", "prompt_hash", "promptHash", "provenance"], "paths": ["app/", "src/", "internal/", "lib/"] }
+        ],
+        "require": "any",
+        "deep_inspect_when_hit": true
+      },
+      "prompt": "gap-10-provenance.md"
+    },
+    {
+      "id": "11",
+      "title": "Conduct cross-boundary threat modelling including indirect prompt injection and supply chain risks",
+      "owner_class": "service",
+      "code_actionable": true,
+      "detector": {
+        "signals": [
+          { "kind": "grep", "patterns": ["threat model", "Threat Model", "OWASP LLM", "owasp-llm", "prompt injection", "supply chain.{0,30}risk"], "paths": ["docs/", "doc/"] },
+          { "kind": "file_exists", "paths": ["docs/security/owasp-llm-top-10-audit.md", "docs/security/threat-model.md", "docs/THREAT_MODEL.md"] }
+        ],
+        "require": "any",
+        "deep_inspect_when_hit": true,
+        "note": "Item 11 itself (the threat-model document) is often present; sub-items 11a (cross-tenant test) and 11b (cost rate-limit) are usually missing. Evaluate them independently."
+      },
+      "sub_items": [
+        {
+          "id": "11a",
+          "title": "Cross-tenant isolation regression test",
+          "detector": {
+            "signals": [
+              { "kind": "file_exists", "paths": ["src/__tests__/unit/CrossTenantIsolation.test.ts", "tests/Feature/CrossTenantIsolationTest.php", "tests/Unit/CrossTenantIsolationTest.php", "tests/cross_tenant_isolation_test.py", "tests/test_cross_tenant_isolation.py"] },
+              { "kind": "grep", "patterns": ["cross[_-]tenant", "tenant isolation"], "paths": ["tests/", "test/", "src/__tests__/", "spec/"] }
+            ],
+            "require": "any",
+            "applicability_check": {
+              "kind": "grep_or_zero",
+              "patterns": ["tenant_id", "tenantId", "tenant-id", "BelongsToTenant", "TenantScoped", "DEFAULT_TENANT", "X-Tenant"],
+              "paths": ["app/", "src/", "internal/", "lib/", "config/"],
+              "on_zero_verdict": "🏢 Org / N/A — single-tenant by design",
+              "on_zero_evidence_template": "No tenant identifier found in code. If this is an internal single-workspace/single-customer service, item 11a does not apply as written. Replace with a scope-regression test for the relevant boundary (e.g. channel-scope for chat bots, role-scope for admin tools)."
+            }
+          },
+          "prompt": "gap-11a-cross-tenant.md"
+        },
+        {
+          "id": "11b",
+          "title": "Per-tenant cost rate-limit",
+          "detector": {
+            "signals": [
+              { "kind": "file_exists", "paths": ["src/api/middleware/CostRateLimit.ts", "app/Http/Middleware/CostRateLimit.php", "app/Http/Middleware/AiCostRateLimit.php", "middleware/cost_rate_limit.py", "middleware/cost_rate_limit.go"] },
+              { "kind": "grep", "patterns": ["COST_RATE_LIMIT", "AI_COST_LIMIT", "ai cost rate", "cost.{0,10}rate.{0,10}limit"], "paths": ["app/", "src/", "internal/", "config/"] }
+            ],
+            "require": "any"
+          },
+          "prompt": "gap-11b-rate-limit.md"
+        }
+      ],
+      "prompt": null
+    },
+    {
+      "id": "12",
+      "title": "Assign autonomy levels to all approved AI use cases in the AI register",
+      "owner_class": "service",
+      "code_actionable": false,
+      "detector": {
+        "signals": [
+          { "kind": "grep", "patterns": ["Autonomy Level", "Advisor \\(read-only\\)", "Assistant \\(human sign-off\\)", "Autonomous \\(guardrailed\\)"], "paths": ["docs/", "doc/", "README.md"] }
+        ],
+        "require": "any",
+        "infer_when_miss": {
+          "kind": "code_inspect",
+          "instructions": "Before asking the operator, attempt to infer the autonomy level by reading: (1) the system prompt / instructions string (look for `SYSTEM_PROMPT`, `instructions:`, `prompt = '''...'''`, `system: ...` in agent/orchestrator source); (2) tool allowlists / denylists (look for `ALLOWED_*`, `READONLY_*`, denylist arrays, guardrails on write operations); (3) human-confirmation flows (UI buttons like Confirm/Edit/Cancel, `requires_approval`, `human_in_the_loop` flags). Heuristics: prompt says 'read-only' OR all tools are read commands → **Advisor**. Tools include writes but UI requires explicit user approval → **Assistant (human sign-off)**. Tools include writes that execute without per-action confirmation but inside hard-coded scope limits → **Autonomous (guardrailed)**. If none of the above can be determined with high confidence, FALL BACK to the manual_prompt below. Always cite the file:line(s) that supported the inference."
+        },
+        "manual_prompt_fallback": {
+          "question": "Per your policy's autonomy-level section, which autonomy level applies to this service's AI use case? Choose: Advisor (read-only) / Assistant (human sign-off) / Autonomous (guardrailed) / Prohibited autonomous."
+        }
+      },
+      "prompt": null
+    },
+    {
+      "id": "13",
+      "title": "Establish agent sandbox or simulation environments for multi-agent system testing",
+      "owner_class": "parked",
+      "code_actionable": false,
+      "detector": { "kind": "manual" },
+      "prompt": null,
+      "trigger_condition": "autonomy level promoted above Level 1"
+    },
+    {
+      "id": "14",
+      "title": "Define continuous learning governance controls for all AI systems that adapt over time",
+      "owner_class": "service",
+      "code_actionable": false,
+      "detector": {
+        "signals": [
+          { "kind": "grep", "patterns": ["Continuous.Learning Governance", "no fine.tuning", "feedback governance"], "paths": ["docs/", "doc/"] }
+        ],
+        "require": "any"
+      },
+      "prompt": null
+    },
+    {
+      "id": "15",
+      "title": "Evaluate AI-assisted quality verification for designated high-risk output categories",
+      "owner_class": "service",
+      "code_actionable": false,
+      "detector": {
+        "signals": [
+          { "kind": "grep", "patterns": ["risk engine", "Multi.Tier Risk", "hard.floor", "Keyword Disambiguation", "high.risk threshold", "review queue", "human.in.the.loop", "PiiRedactor", "Adversarial", "adversarial regression"], "paths": ["docs/", "doc/", "app/", "src/", "internal/"] }
+        ],
+        "require": "any",
+        "deep_inspect_when_hit": true
+      },
+      "prompt": null
+    },
+    {
+      "id": "16",
+      "title": "Update incident response procedures to include cross-boundary agent incident coordination with partners",
+      "owner_class": "service",
+      "code_actionable": true,
+      "detector": {
+        "signals": [
+          { "kind": "grep", "patterns": ["Register ref", "Incident contact", "partner.{0,20}contact", "partner.{0,20}SLA"], "paths": ["docs/", "doc/"] }
+        ],
+        "require": "any"
+      },
+      "prompt": "gap-16-partner-contacts.md"
+    }
+  ]
+}

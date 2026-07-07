@@ -34,11 +34,21 @@ Then invoke it from Claude Code (the skill's `description` controls when it trig
 | [feature-dev](dev-workflow/feature-dev) | Guides new-feature development: architecture planning, implementation and PR creation. |
 | [code-review](dev-workflow/code-review) | Reviews diffs and PRs for correctness, security and performance, with actionable suggestions. |
 | [commit-pr](dev-workflow/commit-pr) | Creates well-structured commits and pull requests with clear messages and branch handling. |
+| [release-tag](dev-workflow/release-tag) | Cuts a release: pre-flight git checks, next-semver tag, push, and an optional profile-driven post-tag deploy hook. |
+| [microservice-scaffold](dev-workflow/microservice-scaffold) | Scaffolds a TypeScript/Express REST microservice: controller/service/route layout, tests, Dockerfile, and Kubernetes manifests. |
+| [codegen-validation-loop](dev-workflow/codegen-validation-loop) | Validates AI/agent-generated code against a source-of-truth spec: failure taxonomy, fix-vs-regenerate decision tree, and agent-vs-ground-truth checks. |
 
 ### QA & testing
 | Skill | What it does |
 |---|---|
 | [playwright-cli](qa-testing/playwright-cli) | Automates browser interactions for testing, form filling, screenshots and data extraction. |
+| [authenticated-api-probe](qa-testing/authenticated-api-probe) | Logs into a web app, extracts a session token, reports the deployed version, and runs authenticated API checks against the OpenAPI spec. Profile-driven. |
+| [deployment-verification](qa-testing/deployment-verification) | Verifies a freshly deployed service end-to-end (infra → config → UI smoke test) with a systematic troubleshooting loop. Profile-driven. |
+
+### Governance
+| Skill | What it does |
+|---|---|
+| [responsible-ai-audit](governance/responsible-ai-audit) | Audits a repo against an AI-use policy checklist, fans out parallel agents to close gaps in git worktrees, and verifies before merging. Bring your own policy. |
 
 ## License
 
