@@ -37,6 +37,7 @@ Then invoke it from Claude Code (the skill's `description` controls when it trig
 | [release-tag](dev-workflow/release-tag) | Cuts a release: pre-flight git checks, next-semver tag, push, and an optional profile-driven post-tag deploy hook. |
 | [microservice-scaffold](dev-workflow/microservice-scaffold) | Scaffolds a TypeScript/Express REST microservice: controller/service/route layout, tests, Dockerfile, and Kubernetes manifests. |
 | [codegen-validation-loop](dev-workflow/codegen-validation-loop) | Validates AI/agent-generated code against a source-of-truth spec: failure taxonomy, fix-vs-regenerate decision tree, and agent-vs-ground-truth checks. |
+| [spec-driven-development](dev-workflow/spec-driven-development) | Turns a requirements doc into a traceable pipeline: spec inventory with stable IDs → gap log → ID-tagged plan/tests/commits → evidence-backed review doc. |
 
 ### QA & testing
 | Skill | What it does |
@@ -44,11 +45,23 @@ Then invoke it from Claude Code (the skill's `description` controls when it trig
 | [playwright-cli](qa-testing/playwright-cli) | Automates browser interactions for testing, form filling, screenshots and data extraction. |
 | [authenticated-api-probe](qa-testing/authenticated-api-probe) | Logs into a web app, extracts a session token, reports the deployed version, and runs authenticated API checks against the OpenAPI spec. Profile-driven. |
 | [deployment-verification](qa-testing/deployment-verification) | Verifies a freshly deployed service end-to-end (infra → config → UI smoke test) with a systematic troubleshooting loop. Profile-driven. |
+| [qa-design](qa-testing/qa-design) | Turns a spec/feedback doc into a structured per-spec-ID QA plan: pre-conditions, steps, expected results, UX checks, named screenshots, coverage table. |
+| [qa-execution](qa-testing/qa-execution) | Executes a QA plan against a live deployment, captures evidence per spec ID, hunts for off-spec bugs, reports coverage, and cleans up fixtures. |
 
 ### Governance
 | Skill | What it does |
 |---|---|
 | [responsible-ai-audit](governance/responsible-ai-audit) | Audits a repo against an AI-use policy checklist, fans out parallel agents to close gaps in git worktrees, and verifies before merging. Bring your own policy. |
+
+### Ops
+| Skill | What it does |
+|---|---|
+| [render-development](ops/render-development) | Render.com deploy → configure → migrate → verify workflow via MCP, plus PostgreSQL operations and post-deploy E2E testing patterns. |
+
+### Productivity
+| Skill | What it does |
+|---|---|
+| [email-cleanup](productivity/email-cleanup) | Priority-ordered Gmail triage via the `gws` CLI: auto-archive, keep-latest-per-project, ask-first, never-touch — all driven by user-editable lists. |
 
 ## License
 

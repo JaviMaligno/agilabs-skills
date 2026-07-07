@@ -1,0 +1,58 @@
+{
+  "skill_name": "spec-driven-development",
+  "evals": [
+    {
+      "id": 0,
+      "name": "feedback-to-plan",
+      "prompt": "Acabamos de recibir este Word con feedback del cliente Acme Corp para el módulo de pricing. Está en el archivo que te paso como input. Tengo que armar el plan de trabajo pero sin pasarme: el cliente es muy sensible a que toquemos cosas que no pidió, y hay algún punto que yo veo vago. Ayúdame a dejar esto listo antes de empezar a tocar código.",
+      "input_files": ["acme-pricing-feedback.md"],
+      "assertions": [
+        {"text": "Produces a spec inventory file (markdown) as a distinct artifact"},
+        {"text": "Inventory uses stable IDs following the SPEC-N pattern"},
+        {"text": "Inventory covers all 6 points from the source feedback"},
+        {"text": "Inventory contains verbatim quotes from the source feedback"},
+        {"text": "Vague points 1 ('simplificar') and 6 ('más fluida') are flagged as gap-blocked"},
+        {"text": "Produces a gap log with concrete client-directed questions"},
+        {"text": "Produces a plan file"},
+        {"text": "Every plan step references at least one SPEC-N ID"},
+        {"text": "Plan contains an explicit 'Out of scope' section"},
+        {"text": "Plan does NOT include steps for gap-blocked points"}
+      ]
+    },
+    {
+      "id": 1,
+      "name": "verify-and-handoff",
+      "prompt": "Ya implementé los 5 puntos del feedback del catálogo de widgets del cliente. Tests en verde, rama en CI verde, pero antes de abrir el PR quiero el documento de revisión para validar manualmente la UI punto por punto. Te paso el Word original del feedback y el resumen de implementación. Arma el doc de review.",
+      "input_files": ["catalog-feedback.md", "implementation-summary.md"],
+      "assertions": [
+        {"text": "Produces a spec review doc (markdown) as primary deliverable"},
+        {"text": "Contains a summary compliance table with SPEC-ID rows"},
+        {"text": "Summary table covers all 5 points from the feedback"},
+        {"text": "Per-point detail section for each SPEC-N with action and evidence"},
+        {"text": "UI points include numbered manual verification steps"},
+        {"text": "Cites specific file paths from the implementation summary"},
+        {"text": "Cites specific test names from the implementation summary"},
+        {"text": "Includes a 'Deferred / out of scope' section"},
+        {"text": "Each SPEC-N has a status field"},
+        {"text": "Does NOT fabricate evidence (screenshots without marking as placeholders)"}
+      ]
+    },
+    {
+      "id": 2,
+      "name": "gap-handling",
+      "prompt": "Nos ha llegado este documento de requirements del cliente, es un borrador y tiene muchos puntos. El cliente quiere que empecemos ya pero yo veo que muchas cosas son muy vagas. Prepáralo para que pueda planear el trabajo.",
+      "input_files": ["vague-requirements.md"],
+      "assertions": [
+        {"text": "Produces a spec inventory with one row per numbered requirement"},
+        {"text": "Inventory uses stable IDs following SPEC-N pattern"},
+        {"text": "At least 6 of the 9 requirements are flagged as gap-blocked"},
+        {"text": "Produces a gap log with concrete actionable questions"},
+        {"text": "Gap questions are specific (not restatements of vagueness)"},
+        {"text": "Subjective language ('rápido', 'intuitivo', 'pronto', 'muchos usuarios') is flagged"},
+        {"text": "Communicates explicitly that implementation cannot start on gap-blocked items"},
+        {"text": "Does NOT produce a full implementation plan for gap-blocked points"},
+        {"text": "Distinguishes planable points from blocked ones"}
+      ]
+    }
+  ]
+}
