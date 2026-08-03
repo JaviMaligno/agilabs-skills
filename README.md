@@ -57,6 +57,7 @@ Then invoke it from Claude Code (the skill's `description` controls when it trig
 | Skill | What it does |
 |---|---|
 | [render-development](ops/render-development) | Render.com deploy → configure → migrate → verify workflow via MCP, plus PostgreSQL operations and post-deploy E2E testing patterns. |
+| [smithery-publish](ops/smithery-publish) | Publishes an MCP server to Smithery as a stdio `.mcpb` release: captures capabilities from the running server, works around the `inputSchema` conflict between Smithery's API and the MCPB spec, and covers the listing metadata the CLI silently ignores. |
 
 ### Productivity
 | Skill | What it does |
