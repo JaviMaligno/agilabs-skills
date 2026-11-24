@@ -1,0 +1,20 @@
+{
+ "category": "Writing",
+ "summary": "Fictional example. Writing sessions are interactive by nature (x0.9): most inputs are short corrections while reviewing a draft. The agent works alone only during build and image steps.",
+ "recommendations": [
+  {
+   "title": "Hand the mechanical publishing steps over as one task",
+   "evidence": "In 4 of the 6 sessions read, 30-40 % of your inputs came after the draft was approved: front matter fixes, image sizes, link checks, one at a time.",
+   "change": "Once the text is approved, send one prompt with the full publishing checklist (front matter, images, links, preview check) and come back when it reports.",
+   "fits": "Yes: those steps need no judgement, and the checklist already exists in the repo.",
+   "saving": "About 0.5 h of attention per article.",
+   "effort": "10 minutes to write the prompt once and keep it as a snippet.",
+   "who": "You",
+   "measure": "Inputs per hour in Writing after the next two articles; target below 8."
+  }
+ ],
+ "not_worth": [
+  {"what": "Letting the agent draft whole articles", "why": "Your edits on its drafts took longer than writing; the sessions read show it."}
+ ],
+ "sessions_read": ["example-session-1.jsonl", "example-session-2.jsonl"]
+}

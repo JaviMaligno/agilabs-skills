@@ -17,7 +17,7 @@ Skills are grouped by category folder; each skill lives at `<category>/<skill>/`
   qa-design, qa-execution
 - `governance/` — responsible-ai-audit
 - `ops/` — render-development
-- `productivity/` — email-cleanup
+- `productivity/` — email-cleanup, agent-multiplier
 
 Inside a skill folder:
 - `SKILL.md` — YAML frontmatter (`name`, `description`, optional `allowed-tools`)
