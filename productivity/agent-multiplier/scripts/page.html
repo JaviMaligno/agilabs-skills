@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent multiplier</title>
+<style>
+  /* Palette: two-series categorical (blue = you, orange = agents) and neutral chrome, validated for
+     colour-vision deficiency and contrast against both surfaces. */
+  :root {
+    --surface: #f9f9f7; --surface-raised: #fcfcfb; --surface-inset: #f0efec;
+    --text: #0b0b0b; --text-dim: #52514e; --rule: #e1e0d9; --axis: #c3c2b7;
+    --series-human: #2a78d6; --series-agent: #eb6834;
+    --shadow: 0 1px 2px rgba(20, 20, 18, .06), 0 2px 8px rgba(20, 20, 18, .05);
+    --sans: system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    --mono: "SFMono-Regular", "Cascadia Mono", "DejaVu Sans Mono", monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --surface: #0d0d0d; --surface-raised: #1a1a19; --surface-inset: #262624;
+      --text: #f0efec; --text-dim: #c3c2b7; --rule: #2c2c2a; --axis: #383835;
+      --series-human: #3987e5; --series-agent: #d95926; --shadow: none; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --surface: #0d0d0d; --surface-raised: #1a1a19; --surface-inset: #262624;
+    --text: #f0efec; --text-dim: #c3c2b7; --rule: #2c2c2a; --axis: #383835;
+    --series-human: #3987e5; --series-agent: #d95926; --shadow: none; color-scheme: dark;
+  }
+  html { background: var(--surface); }
+  body {
+    margin: 0; min-height: 100vh; background: var(--surface); color: var(--text);
+    font: 400 1rem/1.55 var(--sans); -webkit-text-size-adjust: 100%;
+  }
+  .page { box-sizing: border-box; width: min(62rem, 100%); margin-inline: auto; padding: 2.5rem 1rem 4rem; }
+  .page > * + * { margin-top: 1.5rem; }
+  .eyebrow { margin: 0 0 .25rem; color: var(--text-dim); font-size: .8125rem; }
+  .title { margin: 0; font-size: 1.625rem; line-height: 1.2; font-weight: 700; }
+  .panel {
+    background: var(--surface-raised); box-shadow: var(--shadow); border-radius: 12px;
+    padding: 1.25rem 1.5rem 1.5rem; overflow: hidden; box-sizing: border-box; max-width: 100%;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .panel { outline: 1px solid var(--rule); } }
+  :root[data-theme="dark"] .panel { outline: 1px solid var(--rule); }
+  .panel-title { margin: 0 0 .75rem; font-size: 1.0625rem; font-weight: 650; }
+  .panel-title + .caption { margin-top: -.5rem; }
+  .caption { margin: .75rem 0 0; color: var(--text-dim); font-size: .875rem; max-width: 72ch; }
+  .headline { margin: 0; font-size: 1.125rem; max-width: 46ch; }
+  .headline strong { font-variant-numeric: tabular-nums; }
+  .headline-figure { display: block; font: 700 3.25rem/1.05 var(--sans); letter-spacing: -.02em; margin-bottom: .5rem; }
+  .ratio-bar { display: flex; gap: 2px; height: 14px; margin-top: 1rem; }
+  .ratio-bar span { border-radius: 4px; min-width: 4px; }
+  .ratio-bar .agent { background: var(--series-agent); }
+  .ratio-bar .human { background: var(--series-human); }
+  .facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: .75rem 1.5rem; margin: 1.25rem 0 0; }
+  .facts div { border-top: 2px solid var(--rule); padding-top: .375rem; }
+  .facts dt { color: var(--text-dim); font-size: .8125rem; }
+  .facts dd { margin: 0; font-size: 1.125rem; font-variant-numeric: tabular-nums; }
+  .key { display: flex; flex-wrap: wrap; gap: .25rem 1.25rem; margin: 0 0 .5rem; padding: 0; list-style: none; font-size: .875rem; color: var(--text-dim); }
+  .key li::before { content: ""; display: inline-block; width: .75rem; height: .75rem; border-radius: 3px; margin-right: .4rem; background: var(--dot); transform: translateY(1px); }
+  .plot { position: relative; overflow-x: auto; }
+  .plot svg { display: block; width: 100%; min-width: 34rem; height: auto; }
+  .plot .tick { fill: var(--text-dim); font: 11px var(--sans); }
+  .plot .hit { fill: transparent; cursor: default; }
+  .plot .hit:hover, .plot .hit:focus { fill: var(--surface-inset); outline: none; }
+  .tip {
+    position: absolute; pointer-events: none; background: var(--surface-raised); color: var(--text);
+    box-shadow: var(--shadow); outline: 1px solid var(--rule); border-radius: 6px;
+    padding: .375rem .625rem; font-size: .8125rem; white-space: nowrap; transform: translate(-50%, calc(-100% - 8px));
+  }
+  .scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .grid { width: 100%; border-collapse: separate; border-spacing: 0; font-size: .875rem; }
+  .grid th, .grid td { padding: .5rem .75rem .5rem 0; text-align: left; vertical-align: top; }
+  .grid tbody tr + tr td { border-top: 1px solid var(--rule); }
+  .grid thead th { color: var(--text-dim); font-weight: 500; font-size: .8125rem; border-bottom: 2px solid var(--axis); }
+  .grid .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .sorter { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: inherit; }
+  .sorter:focus-visible { outline: 2px solid var(--series-human); outline-offset: 3px; border-radius: 2px; }
+  .advice-group + .advice-group { margin-top: 1.5rem; }
+  .advice-group h3 { margin: 0 0 .25rem; font-size: 1rem; }
+  .advice { background: var(--surface-inset); border-radius: 8px; padding: .75rem 1rem; margin-top: .75rem; }
+  .advice h4 { margin: 0 0 .375rem; font-size: .9375rem; }
+  .advice dl { margin: 0; font-size: .875rem; }
+  .advice dt { color: var(--text-dim); font-size: .8125rem; margin-top: .375rem; }
+  .advice dd { margin: 0; max-width: 78ch; }
+  .fold { margin-top: .75rem; font-size: .875rem; }
+  .fold > summary { cursor: pointer; color: var(--text-dim); }
+  .placeholder { color: var(--text-dim); }
+  @media (max-width: 36rem) {
+    .page { padding-top: 1.5rem; }
+    .panel { padding: 1rem; border-radius: 10px; }
+    .headline-figure { font-size: 2.5rem; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <p class="eyebrow">Measured on this machine from local agent transcripts</p>
+    <h1 class="title">Agent multiplier</h1>
+    <p class="caption" id="period"></p>
+  </header>
+
+  <section class="panel" aria-labelledby="t-summary">
+    <h2 class="panel-title" id="t-summary">How much your agents worked for each hour of your attention</h2>
+    <p class="headline" id="headline"><span class="placeholder">No figures in this page yet.</span></p>
+    <div class="ratio-bar" id="ratio-bar" aria-hidden="true"></div>
+    <dl class="facts" id="facts"></dl>
+    <p class="caption" id="left-out"></p>
+  </section>
+
+  <section class="panel" aria-labelledby="t-days">
+    <h2 class="panel-title" id="t-days">Day by day</h2>
+    <ul class="key">
+      <li style="--dot: var(--series-agent)">Agent hours</li>
+      <li style="--dot: var(--series-human)">Your attention</li>
+    </ul>
+    <div class="plot" id="days-plot"></div>
+    <p class="caption">A day runs from 04:00 to 04:00. Point at a day to see its figures.</p>
+    <details class="fold"><summary>Same data as a table</summary><div class="scroll-x"><table class="grid" id="days-table"></table></div></details>
+  </section>
+
+  <section class="panel" aria-labelledby="t-cats">
+    <h2 class="panel-title" id="t-cats">Kinds of work</h2>
+    <div class="scroll-x"><table class="grid" id="cat-table"></table></div>
+    <p class="caption">When you worked in two categories at the same moment, that time is shared equally between them, so the attention column adds up to the total. Agent hours add up every worker: main agents, subagents, background tasks and remote runs. Inputs per hour divides your inputs by the hours when you or an agent were active. A sitting is a run of inputs with breaks of 30 minutes or less.</p>
+  </section>
+
+  <section class="panel" aria-labelledby="t-defs">
+    <h2 class="panel-title" id="t-defs">What goes in each category</h2>
+    <div class="scroll-x"><table class="grid" id="def-table"></table></div>
+  </section>
+
+  <section class="panel" aria-labelledby="t-advice" id="advice-panel" hidden>
+    <h2 class="panel-title" id="t-advice">Changes worth making</h2>
+    <p class="caption">Each one was written after reading sessions of that category (recommendations/*.json).</p>
+    <div id="advice-list"></div>
+  </section>
+</div>
+<script type="application/json" id="am-payload">{"__agent_multiplier__":"payload"}</script>
+<script>
+(function () {
+  'use strict';
+  var payload;
+  try { payload = JSON.parse(document.getElementById('am-payload').textContent); } catch (err) { payload = null; }
+  if (!payload || payload.__agent_multiplier__) {
+    document.getElementById('period').textContent = 'This is the empty template. Run agent_multiplier.py with --html to fill it.';
+    return;
+  }
+
+  var num = function (v, d) { return v == null ? '–' : Number(v).toFixed(d); };
+  var share = function (v) { return v == null ? '–' : Math.round(v * 100) + '%'; };
+  var times = function (v) { return v == null ? '–' : '×' + Number(v).toFixed(2); };
+  var esc = function (s) { return String(s).replace(/[&<>"']/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; }); };
+  function make(tag, text, className) {
+    var node = document.createElement(tag);
+    if (text != null) node.textContent = text;
+    if (className) node.className = className;
+    return node;
+  }
+
+  var sum = payload.total;
+  var when = payload.computed_at ? new Date(payload.computed_at) : null;
+  document.getElementById('period').textContent = payload.since + ' to ' + payload.until + ' · ' + payload.days + ' days' +
+    (payload.attention_profile ? ' · ' + payload.attention_profile + ' attention' : '') +
+    (when && !isNaN(when) ? ' · computed ' + when.toLocaleString() : '');
+
+  // headline: the figure as a sentence, then the two inputs as a proportional bar
+  var head = document.getElementById('headline');
+  head.replaceChildren();
+  head.appendChild(make('span', times(sum.ratio), 'headline-figure'));
+  head.append('Your agents worked ');
+  head.appendChild(make('strong', num(sum.agent, 1) + ' h'));
+  head.append(' while you gave them ');
+  head.appendChild(make('strong', num(sum.attention, 1) + ' h'));
+  head.append(' of attention.');
+  var bar = document.getElementById('ratio-bar');
+  var whole = (sum.agent || 0) + (sum.attention || 0);
+  if (whole > 0) {
+    [['agent', sum.agent], ['human', sum.attention]].forEach(function (p) {
+      var s = make('span', null, p[0]); s.style.flex = String(p[1] / whole); bar.appendChild(s);
+    });
+  }
+
+  var facts = document.getElementById('facts');
+  [['Your inputs', sum.inputs], ['Prompts', sum.prompts], ['Approvals', sum.approvals], ['Answers', sum.answers],
+   ['Sittings', sum.sittings], ['Conversations', sum.conversations]].forEach(function (f) {
+    var box = make('div'); box.appendChild(make('dt', f[0])); box.appendChild(make('dd', String(f[1]))); facts.appendChild(box);
+  });
+
+  var w = sum.agent_by_worker || {};
+  var restarts = payload.discounts.restart_prompts || {};
+  var restartCount = Object.keys(restarts).reduce(function (a, k) { return a + restarts[k]; }, 0);
+  var parts = ['Agent hours come from main agents (' + num(w.main, 1) + ' h), subagents (' + num(w.subagent, 1) +
+    ' h), background tasks (' + num(w.background, 1) + ' h) and remote runs (' + num(w.remote, 1) + ' h).'];
+  if (w.background_capped_tasks) {
+    parts.push(w.background_capped_tasks + ' background tasks reached the ' + num(w.background_cap_h, 0) +
+      ' h cap and account for ' + num(w.background_capped_h, 1) + ' h; these are often watch or poll loops.');
+  }
+  parts.push('Left out of your attention: ' + restartCount + ' prompts that only restarted work the machine had cut off' +
+    (restartCount ? ' (' + Object.keys(restarts).map(function (k) { return k + ' ' + restarts[k]; }).join(', ') + ')' : '') +
+    ', ' + payload.discounts.compactions + ' context-compaction summaries, and sessions started by a scheduled routine.');
+  parts.push(payload.meetings + ' calendar meetings were taken into account.');
+  document.getElementById('left-out').textContent = parts.join(' ');
+
+  // day-by-day columns, built as one SVG string
+  var days = payload.daily || [];
+  var plot = document.getElementById('days-plot');
+  var VW = 720, VH = 220, left = 40, right = 8, top = 12, bottom = 28;
+  var innerW = VW - left - right, innerH = VH - top - bottom;
+  var peak = Math.max.apply(null, [1].concat(days.map(function (r) { return Math.max(r.agent, r.attention); })));
+  var slot = innerW / Math.max(days.length, 1), barW = Math.max(2, Math.min(12, slot * 0.34));
+  var y = function (v) { return top + innerH - (v / peak) * innerH; };
+  var svg = ['<svg viewBox="0 0 ' + VW + ' ' + VH + '" role="img" aria-label="Agent hours and your attention hours for each day">'];
+  [0, 0.5, 1].forEach(function (f) {
+    var gy = y(peak * f);
+    svg.push('<line x1="' + left + '" x2="' + (VW - right) + '" y1="' + gy + '" y2="' + gy + '" stroke="' + (f ? 'var(--rule)' : 'var(--axis)') + '" stroke-width="1"/>');
+    svg.push('<text class="tick" x="' + (left - 6) + '" y="' + (gy + 4) + '" text-anchor="end">' + num(peak * f, f ? 1 : 0) + ' h</text>');
+  });
+  var labelEvery = Math.max(1, Math.ceil(days.length / 8));
+  days.forEach(function (r, i) {
+    var cx = left + slot * (i + 0.5);
+    [[r.agent, 'var(--series-agent)', cx - barW - 1], [r.attention, 'var(--series-human)', cx + 1]].forEach(function (b) {
+      if (b[0] <= 0) return;
+      var h = Math.max(1, innerH - (y(b[0]) - top)), yy = top + innerH - h, rr = Math.min(4, barW / 2, h);
+      // rounded top, square base on the axis
+      svg.push('<path fill="' + b[1] + '" d="M' + b[2] + ',' + (top + innerH) + 'V' + (yy + rr) + 'Q' + b[2] + ',' + yy + ' ' + (b[2] + rr) + ',' + yy +
+        'H' + (b[2] + barW - rr) + 'Q' + (b[2] + barW) + ',' + yy + ' ' + (b[2] + barW) + ',' + (yy + rr) + 'V' + (top + innerH) + 'Z"/>');
+    });
+    if (i % labelEvery === 0 || i === days.length - 1) {
+      svg.push('<text class="tick" x="' + cx + '" y="' + (VH - 8) + '" text-anchor="middle">' + esc(r.date.slice(5)) + '</text>');
+    }
+    svg.push('<rect class="hit" tabindex="0" data-i="' + i + '" x="' + (cx - slot / 2) + '" y="' + top + '" width="' + slot + '" height="' + innerH + '"/>');
+  });
+  svg.push('</svg>');
+  plot.innerHTML = svg.join('');
+  var tip = make('div', null, 'tip'); tip.hidden = true; plot.appendChild(tip);
+  function showTip(ev) {
+    var r = days[Number(ev.target.getAttribute('data-i'))];
+    if (!r) return;
+    tip.textContent = r.date + ' · ' + times(r.ratio) + ' · agents ' + num(r.agent, 1) + ' h · you ' + num(r.attention, 1) + ' h';
+    var box = plot.getBoundingClientRect(), hit = ev.target.getBoundingClientRect();
+    tip.style.left = Math.min(Math.max(hit.left - box.left + hit.width / 2, 90), box.width - 90) + 'px';
+    tip.style.top = (hit.top - box.top + 12) + 'px';
+    tip.hidden = false;
+  }
+  plot.querySelectorAll('.hit').forEach(function (h) {
+    h.addEventListener('mouseenter', showTip); h.addEventListener('focus', showTip);
+    h.addEventListener('mouseleave', function () { tip.hidden = true; }); h.addEventListener('blur', function () { tip.hidden = true; });
+  });
+
+  function fillTable(table, headers, body) {
+    table.replaceChildren();
+    var hr = table.createTHead().insertRow();
+    headers.forEach(function (h) { hr.appendChild(h); });
+    var tb = table.createTBody();
+    body.forEach(function (cells) { var tr = tb.insertRow(); cells.forEach(function (c) { tr.appendChild(c); }); });
+    return tb;
+  }
+  function cell(text, numeric, tag) { return make(tag || 'td', text, numeric ? 'num' : null); }
+
+  fillTable(document.getElementById('days-table'),
+    [cell('Day', false, 'th'), cell('Agent h', true, 'th'), cell('Your attention h', true, 'th'), cell('Multiplier', true, 'th')],
+    days.map(function (r) { return [cell(r.date), cell(num(r.agent, 1), true), cell(num(r.attention, 1), true), cell(times(r.ratio), true)]; }));
+
+  // kinds of work (sortable)
+  var rows = payload.rows || [];
+  var columns = [
+    {key: 'category', label: 'Category', show: function (r) { return r.category; }},
+    {key: 'kind', label: 'Kind', show: function (r) { return r.kind; }},
+    {key: 'attention', label: 'Your attention h', numeric: true, show: function (r) { return num(r.attention, 1); }},
+    {key: 'agent', label: 'Agent h', numeric: true, show: function (r) { return num(r.agent, 1) + (r.remote ? ' (' + num(r.remote, 1) + ' remote)' : ''); }},
+    {key: 'ratio', label: 'Multiplier', numeric: true, show: function (r) { return times(r.ratio); }},
+    {key: 'inputs_per_hour', label: 'Inputs per hour', numeric: true, show: function (r) { return num(r.inputs_per_hour, 1); }},
+    {key: 'approval_share', label: 'Share approvals', numeric: true, show: function (r) { return share(r.approval_share); }},
+    {key: 'sittings', label: 'Sittings', numeric: true, show: function (r) { return String(r.sittings); }},
+    {key: 'median_sitting_min', label: 'Typical sitting', numeric: true, show: function (r) { return r.median_sitting_min == null ? '–' : r.median_sitting_min + ' min'; }}
+  ];
+  var order = {key: 'attention', desc: true};
+  var catTable = document.getElementById('cat-table');
+  function drawCategories() {
+    var heads = columns.map(function (c) {
+      var th = make('th', null, c.numeric ? 'num' : null);
+      th.setAttribute('aria-sort', c.key === order.key ? (order.desc ? 'descending' : 'ascending') : 'none');
+      var btn = make('button', c.label + (c.key === order.key ? (order.desc ? ' ▼' : ' ▲') : ''), 'sorter');
+      btn.type = 'button';
+      btn.addEventListener('click', function () {
+        order = {key: c.key, desc: c.key === order.key ? !order.desc : true}; drawCategories();
+      });
+      th.appendChild(btn); return th;
+    });
+    var sorted = rows.slice().sort(function (a, b) {
+      var va = a[order.key], vb = b[order.key];
+      if (va == null && vb == null) return 0;
+      if (va == null) return 1;
+      if (vb == null) return -1;
+      var cmp = typeof va === 'string' ? va.localeCompare(vb) : va - vb;
+      return order.desc ? -cmp : cmp;
+    });
+    var tb = fillTable(catTable, heads, sorted.map(function (r) {
+      return columns.map(function (c) { return cell(c.show(r), c.numeric); });
+    }));
+    if (!rows.length) { var td = cell('Nothing in this window.'); td.colSpan = columns.length; td.className = 'placeholder'; tb.insertRow().appendChild(td); }
+  }
+  drawCategories();
+
+  fillTable(document.getElementById('def-table'), [make('th', 'Category'), make('th', 'Definition'), make('th', 'Folders (your attention h)')],
+    rows.map(function (r) {
+      var folders = Object.keys(r.folders || {}).map(function (k) { return k + ' (' + num(r.folders[k], 1) + ')'; }).join(', ');
+      return [cell(r.category), cell(r.definition || ''), cell(folders || (r.remote ? 'remote runs only' : '–'))];
+    }));
+
+  // recommendations
+  var recs = payload.recommendations || {};
+  var names = Object.keys(recs);
+  if (names.length) {
+    document.getElementById('advice-panel').hidden = false;
+    var list = document.getElementById('advice-list');
+    var fields = [['What was seen', 'evidence'], ['Change', 'change'], ['Why it fits this work', 'fits'], ['Expected saving', 'saving'],
+                  ['Effort', 'effort'], ['Who does it', 'who'], ['How to check it worked', 'measure']];
+    names.forEach(function (name) {
+      var r = recs[name], group = make('div', null, 'advice-group');
+      group.appendChild(make('h3', name));
+      if (r.summary) group.appendChild(make('p', r.summary, 'caption'));
+      (r.recommendations || []).forEach(function (item) {
+        var card = make('article', null, 'advice'), dl = make('dl');
+        card.appendChild(make('h4', item.title || ''));
+        fields.forEach(function (f) { if (item[f[1]]) { dl.appendChild(make('dt', f[0])); dl.appendChild(make('dd', String(item[f[1]]))); } });
+        card.appendChild(dl); group.appendChild(card);
+      });
+      if ((r.not_worth || []).length) {
+        var fold = make('details', null, 'fold'), ul = make('ul');
+        fold.appendChild(make('summary', 'Considered and dropped'));
+        r.not_worth.forEach(function (n) { ul.appendChild(make('li', n.what + ': ' + n.why)); });
+        fold.appendChild(ul); group.appendChild(fold);
+      }
+      list.appendChild(group);
+    });
+  }
+})();
+</script>
+</body>
+</html>

@@ -63,6 +63,7 @@ Then invoke it from Claude Code (the skill's `description` controls when it trig
 | Skill | What it does |
 |---|---|
 | [email-cleanup](productivity/email-cleanup) | Priority-ordered Gmail triage via the `gws` CLI: auto-archive, keep-latest-per-project, ask-first, never-touch — all driven by user-editable lists. |
+| [agent-multiplier](productivity/agent-multiplier) | Measures agent hours per hour of your attention from local Claude Code and Codex transcripts, with discounts for machine cut-offs, a breakdown by kind of work and a self-contained HTML page. Methodology by Juan Iglesias, in collaboration. |
 
 ## License
 

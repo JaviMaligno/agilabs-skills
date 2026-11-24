@@ -1,0 +1,14 @@
+{
+ "_comment": "Copy to ~/.agent-multiplier/config.json and put your own categories. Each one: name, fragments of the working directory that identify it (first category that matches wins), a definition for the page, and the kind of work: delegable, creative, coordination or meeting.",
+ "categories": [
+  {"name": "Client A", "match": ["/clients/client-a", "client-a-api"], "definition": "Client A's repos.", "kind": "delegable"},
+  {"name": "Internal product", "match": ["/work/product"], "definition": "The company's own product.", "kind": "delegable"},
+  {"name": "Writing", "match": ["my-site", "blog"], "definition": "Writing and reviewing articles.", "kind": "creative"},
+  {"name": "Side projects", "match": ["/side/"], "definition": "Every other personal repo.", "kind": "delegable"}
+ ],
+ "coordination": {"name": "Coordination", "dir_suffix": "/work", "definition": "Sessions opened at the root of your work, with no repo: email, chat, analysis."},
+ "meeting": {"name": "Questions during meetings", "definition": "Every input written during a calendar meeting with other attendees."},
+ "other": {"name": "Other", "definition": "Everything else."},
+ "routine_marker": "[agent-multiplier-routine]",
+ "exclude_dirs": []
+}
